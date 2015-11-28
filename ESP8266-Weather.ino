@@ -8,6 +8,7 @@
 Adafruit_BMP085 bmp;
 void setup() {
   Serial.begin(115200);
+  Serial.println();
   Serial.print("Connecting to network: ");
   Serial.println(WIFI_SSID);
 
@@ -56,5 +57,5 @@ void loop() {
     } else {
       Serial.println("Could not connect, will try later");
     }
-    delay(60000);
+    delay(300000);
 }
