@@ -1,0 +1,6 @@
+#define WIFI_SSID "telemetry"
+#define WIFI_PASS "telemetry"
+#define DATA_HOST "data.sparkfun.com"
+#define DATA_PORT 443
+#define DATA_PATH "/input/<ID>?private_key=<KEY>"
+
