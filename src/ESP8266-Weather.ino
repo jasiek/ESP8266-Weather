@@ -1,73 +1,51 @@
 #include <Arduino.h>
-
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
-#include <WiFiClientSecure.h>
 #include <Wire.h>
-#include "Adafruit_BMP085.h"
+#include <Adafruit_HTU21DF.h>
 #include "settings.h"
 
-Adafruit_BMP085 bmp;
-
 ADC_MODE(ADC_VCC);
+Adafruit_HTU21DF htu = Adafruit_HTU21DF();
+ESP8266WiFiMulti WiFiMulti;
 
 void setup() {
+  Serial.begin(115200);
+  Serial.println("ESP8266 Weather Station");
+  Serial.flush();
+  WiFiMulti.addAP(WIFI_SSID, WIFI_PASS);
+  maybeReconnect();
+}
 
+void maybeReconnect() {
+  while (WiFiMulti.run() != WL_CONNECTED) {
+    Serial.println("(Re)connecting...");
+    delay(1000);
+  }
+  Serial.print("connected, got IP: ");
+  Serial.println(WiFi.localIP());
 }
 
 void loop() {
-    Serial.begin(115200);
-    Serial.println();
-  
-   if (!bmp.begin()) {
+   if (!htu.begin()) {
      Serial.println("Can't initialize sensor");
      while(1);
    }
 
-    Serial.print("Connecting to network: ");
-    Serial.println(WIFI_SSID);
-
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
-    while (WiFi.status() != WL_CONNECTED) {
-      Serial.print(".");
-      delay(500);
-    }
-    Serial.println(WiFi.localIP());
-
-    float temp = bmp.readTemperature();
-    float press = bmp.readPressure() / 100;
+    float temp = htu.readTemperature();
+    float press = htu.readHumidity();
     float vcc = ESP.getVcc() / 1000.0;
-
-    String url = String(DATA_PATH) + "&temp=" + String(temp) + "&pressure=" + String(press) + "&vcc=" + String(vcc);
-    WiFiClientSecure client;
+    int rssi = WiFi.RSSI();
 
     Serial.print("Temp: ");
     Serial.print(temp);
     Serial.print(" Pressure: ");
     Serial.print(press);
     Serial.print(" Voltage: ");
-    Serial.println(vcc); 
-    
-    if (client.connect(DATA_HOST, DATA_PORT)) {
-      client.print(String("GET ") + url + " HTTP/1.1\r\n" +
-      "Host: data.sparkfun.com\r\n" +
-      "User-Agent: ESP8266-Weather\r\n" +
-      "Connection: close\r\n\r\n");
-      Serial.println("Sent request");
+    Serial.print(vcc);
+    Serial.print(" RSSI: ");
+    Serial.println(rssi);
 
-      bool success = false;
-
-      while (client.connected()) {
-        String line = client.readStringUntil('\n');
-        if (line.startsWith("1 success")) {
-          success = true;
-          break;
-        }
-      }
-      success ? Serial.println("Data sent successfully") : Serial.println("An error occured");
-    } else {
-      Serial.println("Could not connect, will try later");
-    }
     ESP.deepSleep(600 * 1000000);
     delay(1000);
 }
