@@ -34,7 +34,7 @@ void loop() {
 
     float temp = bmp.readTemperature();
     float press = bmp.readPressure() / 100;
-    float vcc = ESP.getVcc() / 1000;
+    float vcc = ESP.getVcc() / 1000.0;
 
     String url = String(DATA_PATH) + "&temp=" + String(temp) + "&pressure=" + String(press) + "&vcc=" + String(vcc);
     WiFiClientSecure client;
