@@ -3,11 +3,11 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
 #include <ESP8266HTTPClient.h>
-#include <Adafruit_HTU21DF.h>
+#include <SparkFunHTU21D.h>
 #include "settings.h"
 
 ADC_MODE(ADC_VCC);
-Adafruit_HTU21DF htu = Adafruit_HTU21DF();
+HTU21D htu;
 ESP8266WiFiMulti WiFiMulti;
 
 void setup() {
@@ -17,6 +17,13 @@ void setup() {
   Serial.flush();
   WiFiMulti.addAP(WIFI_SSID, WIFI_PASS);
   maybeReconnect();
+
+  htu.begin();
+
+  report();
+
+  ESP.deepSleep(600 * 1000000, WAKE_RFCAL);
+  delay(1000);
 }
 
 String nodeName() {
@@ -79,13 +86,5 @@ void report() {
 }
 
 void loop() {
-   if (!htu.begin()) {
-     Serial.println("Can't initialize sensor");
-     while(1);
-   }
-
-   report();
-
-   ESP.deepSleep(600 * 1000000);
-   delay(1000);
+  // NOOP
 }
