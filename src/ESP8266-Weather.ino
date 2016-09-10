@@ -4,11 +4,16 @@
 #include <ESP8266WiFiMulti.h>
 #include <ESP8266HTTPClient.h>
 #include <SparkFunHTU21D.h>
+#include <PubSubClient.h>
+#include <DHT.h>
 #include "settings.h"
 
 ADC_MODE(ADC_VCC);
 HTU21D htu;
+DHT dht(D5, DHT11);
 ESP8266WiFiMulti WiFiMulti;
+WiFiClient client;
+PubSubClient mqtt(client);
 
 void setup() {
   Serial.println();
@@ -18,6 +23,8 @@ void setup() {
   WiFiMulti.addAP(WIFI_SSID, WIFI_PASS);
   maybeReconnect();
 
+  mqtt.setServer("192.168.1.2", 1883);
+  dht.begin();
   htu.begin();
 
   report();
@@ -42,9 +49,25 @@ void maybeReconnect() {
   Serial.println(WiFi.localIP());
 }
 
+float readTemperature() {
+  float t = dht.readTemperature();
+  if (isnan(t)) {
+    t = htu.readTemperature();
+  }
+  return t;
+}
+
+float readHumidity() {
+  float t = dht.readHumidity();
+  if (isnan(t)) {
+    t = htu.readHumidity();
+  }
+  return t;
+}
+
 void report() {
-  float temp = htu.readTemperature();
-  float humid = htu.readHumidity();
+  float temp = readTemperature();
+  float humid = readHumidity();
   float vcc = ESP.getVcc() / 1000.0;
   int rssi = WiFi.RSSI();
 
@@ -83,6 +106,12 @@ void report() {
   Serial.println("end");
 
   http.end();
+
+  if (mqtt.connect("ESP8266-Weather")) {
+    String topic = "/devices/" + nodeName();
+    mqtt.publish(topic.c_str(), stream.c_str());
+    mqtt.disconnect();
+  }
 }
 
 void loop() {
