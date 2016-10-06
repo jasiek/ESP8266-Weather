@@ -29,7 +29,8 @@ void setup() {
 
   report();
 
-  ESP.deepSleep(300 * 1000000, WAKE_RFCAL);
+  delay(300 * 1000);
+  ESP.restart();
 }
 
 String nodeName() {
