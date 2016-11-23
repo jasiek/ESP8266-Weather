@@ -23,7 +23,7 @@ void setup() {
   WiFiMulti.addAP(WIFI_SSID, WIFI_PASS);
   maybeReconnect();
 
-  mqtt.setServer("192.168.1.2", 1883);
+  mqtt.setServer(MQTT_SERVER, MQTT_PORT);
   dht.begin();
   htu.begin();
 
@@ -109,7 +109,7 @@ void report() {
 
   if (mqtt.connect("ESP8266-Weather")) {
     String topic = "/devices/" + nodeName();
-    mqtt.publish(topic.c_str(), stream.c_str());
+    mqtt.publish(topic.c_str(), stream.c_str(), true);
     mqtt.disconnect();
   }
 }
