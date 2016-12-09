@@ -2,11 +2,10 @@
 #include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
-#include <ESP8266HTTPClient.h>
 #include <SparkFunHTU21D.h>
 #include <PubSubClient.h>
 #include <DHT.h>
-#include "settings.h"
+#include <FS.h>
 
 ADC_MODE(ADC_VCC);
 HTU21D htu;
@@ -15,15 +14,55 @@ ESP8266WiFiMulti WiFiMulti;
 WiFiClient client;
 PubSubClient mqtt(client);
 
+String WIFI_SSID;
+String WIFI_PASS;
+String MQTT_SERVER;
+int MQTT_PORT;
+
+void readConfiguration() {
+  StaticJsonBuffer<200> buffer;
+  char readFileBuffer[200];
+  if (!SPIFFS.begin()) {
+    Serial.println("SPIFFS could not be accessed");
+    return;
+  }
+
+  File f = SPIFFS.open("/config.json", "r");
+
+  if (!f) {
+    Serial.println("Opening config.json failed");
+    return;
+  }
+
+  Serial.println(f.readBytes(readFileBuffer, 200));
+  Serial.println(readFileBuffer);
+  JsonObject &root = buffer.parse(readFileBuffer);
+
+  if (!root.success()) {
+    Serial.println("Parsing config.json failed");
+    return;
+  }
+
+  WIFI_SSID = root["wifi_ssid"].asString();
+  WIFI_PASS = root["wifi_pass"].asString();
+  MQTT_SERVER = root["mqtt_server"].asString();
+  MQTT_PORT = root["mqtt_port"].as<int>();
+
+  SPIFFS.end();
+}
+
 void setup() {
   Serial.println();
   Serial.begin(115200);
   Serial.println("ESP8266 Weather Station");
   Serial.flush();
-  WiFiMulti.addAP(WIFI_SSID, WIFI_PASS);
+
+  readConfiguration();
+
+  WiFiMulti.addAP(WIFI_SSID.c_str(), WIFI_PASS.c_str());
   maybeReconnect();
 
-  mqtt.setServer(MQTT_SERVER, MQTT_PORT);
+  mqtt.setServer(MQTT_SERVER.c_str(), MQTT_PORT);
   dht.begin();
   htu.begin();
 
@@ -66,6 +105,7 @@ float readHumidity() {
 }
 
 void report() {
+  StaticJsonBuffer<200> buffer;
   float temp = readTemperature();
   float humid = readHumidity();
   float vcc = ESP.getVcc() / 1000.0;
@@ -80,14 +120,7 @@ void report() {
   Serial.print(" RSSI: ");
   Serial.println(rssi);
 
-  HTTPClient http;
-
-  String url = String(API_ENDPOINT) + nodeName();
-  Serial.println("POST: " + url);
-
-  http.begin(url);
   String stream;
-  StaticJsonBuffer<200> buffer;
   JsonObject& root = buffer.createObject();
   root["temperature"] = temp;
   root["humidity"] = humid;
@@ -95,17 +128,6 @@ void report() {
   root["rssi"] = rssi;
   root.printTo(stream);
   Serial.println(stream);
-
-  int status = http.POST(stream);
-  if (status == 200) {
-    Serial.println("...success!");
-  } else {
-    Serial.println(status);
-    Serial.println(http.getString());
-  }
-  Serial.println("end");
-
-  http.end();
 
   if (mqtt.connect("ESP8266-Weather")) {
     String topic = "/devices/" + nodeName();

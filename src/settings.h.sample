@@ -1,4 +1,0 @@
-#define WIFI_SSID "telemetry"
-#define WIFI_PASS "telemetry"
-#define API_ENDPOINT "http://api.com/devices/"
-
