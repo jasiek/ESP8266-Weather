@@ -5,11 +5,17 @@
 #include <SparkFunHTU21D.h>
 #include <PubSubClient.h>
 #include <DHT.h>
+#include <SPI.h>
+#include <Adafruit_BMP085.h>
+#include <Adafruit_HTU21DF.h>
 #include <FS.h>
 
 ADC_MODE(ADC_VCC);
-HTU21D htu;
+
+Adafruit_HTU21DF htu;
+Adafruit_BMP085 bmp;
 DHT dht(D5, DHT11);
+
 ESP8266WiFiMulti WiFiMulti;
 WiFiClient client;
 PubSubClient mqtt(client);
@@ -18,6 +24,15 @@ String WIFI_SSID;
 String WIFI_PASS;
 String MQTT_SERVER;
 int MQTT_PORT;
+
+typedef enum SensorType {
+  SK_NONE = 0,
+  SK_HTU21D,
+  SK_DHT11,
+  SK_BMP180
+} SensorType;
+
+SensorType installedSensor;
 
 void readConfiguration() {
   StaticJsonBuffer<200> buffer;
@@ -51,6 +66,22 @@ void readConfiguration() {
   SPIFFS.end();
 }
 
+SensorType determineSensorType() {
+  if (htu.begin()) {
+    return SK_HTU21D;
+  }
+  if (bmp.begin()) {
+    return SK_BMP180;
+  }
+
+  dht.begin();
+  if (!isnan(dht.readTemperature())) {
+    return SK_DHT11;
+  }
+
+  return SK_NONE;
+}
+
 void setup() {
   Serial.println();
   Serial.begin(115200);
@@ -63,8 +94,10 @@ void setup() {
   maybeReconnect();
 
   mqtt.setServer(MQTT_SERVER.c_str(), MQTT_PORT);
-  dht.begin();
-  htu.begin();
+
+  Wire.begin(D2, D1);
+  installedSensor = determineSensorType();
+  Serial.println(installedSensor);
 
   report();
 
@@ -89,41 +122,64 @@ void maybeReconnect() {
 }
 
 float readTemperature() {
-  float t = dht.readTemperature();
-  if (isnan(t)) {
-    t = htu.readTemperature();
+  switch(installedSensor) {
+    case SK_HTU21D:
+      return htu.readTemperature();
+    case SK_BMP180:
+      return bmp.readTemperature();
+    default:
+      dht.readTemperature();
   }
-  return t;
 }
 
 float readHumidity() {
-  float t = dht.readHumidity();
-  if (isnan(t)) {
-    t = htu.readHumidity();
+  switch(installedSensor) {
+    case SK_HTU21D:
+      return htu.readHumidity();
+    case SK_BMP180:
+      return NAN;
+    default:
+      return dht.readHumidity();
   }
-  return t;
+}
+
+float readPressure() {
+  switch(installedSensor) {
+    case SK_BMP180:
+      return bmp.readPressure() / 100;
+    default:
+      return NAN;
+  }
 }
 
 void report() {
+  if (installedSensor == SK_NONE) {
+    Serial.println("No sensor detected.");
+    return;
+  }
+
   StaticJsonBuffer<200> buffer;
   float temp = readTemperature();
+  Serial.println(temp);
   float humid = readHumidity();
+  Serial.println(humid);
+  float press = readPressure();
+  Serial.println(press);
   float vcc = ESP.getVcc() / 1000.0;
   int rssi = WiFi.RSSI();
 
-  Serial.print("Temp: ");
-  Serial.print(temp);
-  Serial.print(" Humidity: ");
-  Serial.print(humid);
-  Serial.print(" Voltage: ");
-  Serial.print(vcc);
-  Serial.print(" RSSI: ");
-  Serial.println(rssi);
-
   String stream;
   JsonObject& root = buffer.createObject();
-  root["temperature"] = temp;
-  root["humidity"] = humid;
+  if (!isnan(temp)) {
+    root["temperature"] = temp;
+  }
+  if (!isnan(humid)) {
+    root["humidity"] = humid;
+  }
+  if (!isnan(press)) {
+    root["pressure"] = press;
+  }
+
   root["voltage"] = vcc;
   root["rssi"] = rssi;
   root.printTo(stream);
