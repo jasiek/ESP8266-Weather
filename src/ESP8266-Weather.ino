@@ -2,8 +2,8 @@
 #include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
+#include <MQTTClient.h>
 #include <SparkFunHTU21D.h>
-#include <PubSubClient.h>
 #include <DHT.h>
 #include <SPI.h>
 #include <Adafruit_BMP085.h>
@@ -17,12 +17,16 @@ Adafruit_BMP085 bmp;
 DHT dht(D5, DHT11);
 
 ESP8266WiFiMulti WiFiMulti;
-WiFiClient client;
-PubSubClient mqtt(client);
+WiFiClient clientRegular;
+WiFiClientSecure clientSecure;
+MQTTClient mqtt;
 
 String WIFI_SSID;
 String WIFI_PASS;
 String MQTT_SERVER;
+String MQTT_USERNAME;
+String MQTT_PASSWORD;
+bool MQTT_SSL;
 int MQTT_PORT;
 
 typedef enum SensorType {
@@ -62,6 +66,9 @@ void readConfiguration() {
   WIFI_PASS = root["wifi_pass"].asString();
   MQTT_SERVER = root["mqtt_server"].asString();
   MQTT_PORT = root["mqtt_port"].as<int>();
+  MQTT_USERNAME = root["mqtt_username"].asString();
+  MQTT_PASSWORD = root["mqtt_password"].asString();
+  MQTT_SSL = root["mqtt_ssl"].as<bool>();
 
   SPIFFS.end();
 }
@@ -86,15 +93,15 @@ void setup() {
   Serial.println();
   Serial.begin(115200);
   Serial.println("ESP8266 Weather Station");
+  Serial.print("Node name");
+  Serial.println(nodeName());
   Serial.flush();
 
   readConfiguration();
 
   WiFiMulti.addAP(WIFI_SSID.c_str(), WIFI_PASS.c_str());
   maybeReconnect();
-
-  mqtt.setServer(MQTT_SERVER.c_str(), MQTT_PORT);
-
+  mqtt.begin(MQTT_SERVER.c_str(), MQTT_PORT, MQTT_SSL ? clientSecure : clientRegular);
   Wire.begin(D2, D1);
   installedSensor = determineSensorType();
   Serial.println(installedSensor);
@@ -113,6 +120,8 @@ String nodeName() {
 }
 
 void maybeReconnect() {
+  WiFi.persistent(false);
+
   while (WiFiMulti.run() != WL_CONNECTED) {
     Serial.println("(Re)connecting...");
     delay(1000);
@@ -184,14 +193,33 @@ void report() {
   root["rssi"] = rssi;
   root.printTo(stream);
   Serial.println(stream);
+  const char *clientName = (String("ESP8266-Weather ") + nodeName()).c_str();
 
-  if (mqtt.connect("ESP8266-Weather")) {
+  Serial.println("sending");
+  if (mqtt.connect(clientName, MQTT_USERNAME.c_str(), MQTT_PASSWORD.c_str())){
     String topic = "/devices/" + nodeName();
-    mqtt.publish(topic.c_str(), stream.c_str(), true);
+    MQTTMessage message;
+    message.topic = (char *)topic.c_str();
+    message.length = stream.length();
+    message.payload = (char *)stream.c_str();
+    message.retained = true;
+
+    if (mqtt.publish(&message)) {
+      Serial.println("published");
+    }
+
     mqtt.disconnect();
   }
 }
 
 void loop() {
   // NOOP
+}
+
+void messageReceived(String topic, String payload, char * bytes, unsigned int length) {
+  Serial.print("incoming: ");
+  Serial.print(topic);
+  Serial.print(" - ");
+  Serial.print(payload);
+  Serial.println();
 }
