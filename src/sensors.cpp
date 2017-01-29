@@ -39,7 +39,7 @@ float sensors::readTemperature() {
     case SK_BMP180:
       return bmp.readTemperature();
     default:
-      dht.readTemperature();
+      return dht.readTemperature();
   }
 }
 
