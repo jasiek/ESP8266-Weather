@@ -38,6 +38,10 @@ typedef enum SensorType {
 
 SensorType installedSensor;
 
+String nodeName();
+void report();
+void maybeReconnect();
+
 void readConfiguration() {
   StaticJsonBuffer<200> buffer;
   char readFileBuffer[200];
@@ -114,6 +118,11 @@ void setup() {
   Wire.begin(D2, D1);
   installedSensor = determineSensorType();
   Serial.println(installedSensor);
+  if (installedSensor == SK_NONE) {
+    Serial.println("No sensor installed.");
+    delay(3000);
+    ESP.reset();
+  }
 
   report();
 
