@@ -90,10 +90,18 @@ SensorType determineSensorType() {
 }
 
 void setup() {
-  Serial.println();
   Serial.begin(115200);
+  Serial.println();
+  Serial.println();
   Serial.println("ESP8266 Weather Station");
-  Serial.print("Node name");
+  Serial.print("Built on ");
+  Serial.print(__DATE__);
+  Serial.print(" ");
+  Serial.print(__TIME__);
+  Serial.print(" from ");
+  Serial.println(GIT_REVISION);
+  Serial.println("-----------------------");
+  Serial.print("Node name: ");
   Serial.println(nodeName());
   Serial.flush();
 
