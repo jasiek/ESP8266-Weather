@@ -1,6 +1,5 @@
 #include "sensors.h"
 
-#include <SparkFunHTU21D.h>
 #include <DHT.h>
 #include <SPI.h>
 #include <Adafruit_BMP085.h>
