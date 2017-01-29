@@ -99,6 +99,7 @@ void setup() {
 
   readConfiguration();
 
+  WiFi.mode(WIFI_STA);
   WiFiMulti.addAP(WIFI_SSID.c_str(), WIFI_PASS.c_str());
   maybeReconnect();
   mqtt.begin(MQTT_SERVER.c_str(), MQTT_PORT, MQTT_SSL ? clientSecure : clientRegular);
