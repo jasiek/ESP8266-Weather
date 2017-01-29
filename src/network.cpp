@@ -14,7 +14,7 @@ void network::start() {
   String nodeName = WiFi.macAddress();
   for (int i = nodeName.indexOf(':'); i > -1; i = nodeName.indexOf(':')) nodeName.remove(i, 1);
   nodeName.toLowerCase();
-  strncpy(network_config.node_name, nodeName.c_str(), 8);
+  strncpy(network_config.node_name, nodeName.c_str(), 12);
 
   WiFiMulti.addAP(network::config()->wifi_ssid, network::config()->wifi_pass);
 }

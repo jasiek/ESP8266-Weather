@@ -15,7 +15,7 @@ struct network_config_t {
   bool mqtt_ssl;
   char mqtt_username[128];
   char mqtt_password[128];
-  char node_name[8];
+  char node_name[12];
 };
 
 namespace network {
