@@ -15,6 +15,8 @@ void network::start() {
   for (int i = nodeName.indexOf(':'); i > -1; i = nodeName.indexOf(':')) nodeName.remove(i, 1);
   nodeName.toLowerCase();
   strncpy(network_config.node_name, nodeName.c_str(), 12);
+  DEBUG("Node name: ");
+  DEBUG(network_config.node_name);
 
   WiFiMulti.addAP(network::config()->wifi_ssid, network::config()->wifi_pass);
 }
