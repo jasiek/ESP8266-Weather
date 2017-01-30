@@ -9,7 +9,10 @@ MQTTClient mqtt;
 network_config_t network_config;
 
 void network::start() {
+  WiFi.persistent(false);
   WiFi.mode(WIFI_STA);
+  // Read network configuration, TODO: rename this.
+  network::config();
 
   String nodeName = WiFi.macAddress();
   for (int i = nodeName.indexOf(':'); i > -1; i = nodeName.indexOf(':')) nodeName.remove(i, 1);
@@ -18,7 +21,11 @@ void network::start() {
   DEBUG("Node name: ");
   DEBUG(network_config.node_name);
 
-  WiFiMulti.addAP(network::config()->wifi_ssid, network::config()->wifi_pass);
+  WiFiMulti.addAP(network_config.wifi_ssid, network_config.wifi_pass);
+  mqtt.begin(network_config.mqtt_server,
+    network_config.mqtt_port,
+    network_config.mqtt_ssl ? clientSecure : clientRegular);
+  maybe_reconnect();
 }
 
 network_config_t *network::config() {
@@ -85,24 +92,23 @@ void network::report(float temp, float humidity, float pressure, float vcc) {
   root.printTo(stream);
   DEBUG(stream);
 
-  DEBUG("sending");
-  mqtt.begin(network_config.mqtt_server,
-    network_config.mqtt_port,
-    network_config.mqtt_ssl ? clientSecure : clientRegular);
 
-  if (mqtt.connect(mqtt_client_name(), network_config.mqtt_username, network_config.mqtt_password)) {
 
+  retry:
+  if (mqtt.connected()) {
     MQTTMessage message;
     message.topic = (char*)mqtt_topic();
     message.length = stream.length();
     message.payload = (char *)stream.c_str();
     message.retained = true;
 
+    DEBUG("sending");
     if (mqtt.publish(&message)) {
-      Serial.println("published");
+      DEBUG("published");
     }
-
-    mqtt.disconnect();
+  } else {
+    // network::reconnect();
+    goto retry;
   }
 }
 
@@ -119,13 +125,35 @@ const char *network::mqtt_topic() {
 }
 
 void network::maybe_reconnect() {
-  WiFi.persistent(false);
-
   while (WiFiMulti.run() != WL_CONNECTED) {
-    Serial.println("(Re)connecting...");
+    DEBUG("(Re)connecting...");
     delay(1000);
   }
 
   DEBUG("connected, got IP: ");
   DEBUG(WiFi.localIP());
+
+  while (!mqtt.connected()) {
+    DEBUG("(Re)connecting to MQTT");
+    mqtt.connect(mqtt_client_name(), network_config.mqtt_username, network_config.mqtt_password);
+    delay(1000);
+  }
+
+  mqtt.subscribe(MQTT_CONTROL_TOPIC);
+}
+
+void network::mqtt_message_received_cb(String topic, String payload, char * bytes, unsigned int length) {
+  if (topic == MQTT_CONTROL_TOPIC && payload == "RESET") {
+    ESP.restart();
+  } else {
+    DEBUG("incoming: ");
+    DEBUG(topic);
+    DEBUG(" - ");
+    DEBUG(payload);
+    DEBUG();
+  }
+}
+
+void network::loop() {
+  mqtt.loop();
 }

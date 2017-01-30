@@ -6,6 +6,8 @@
 #include <MQTTClient.h>
 #include "debug.h"
 
+#define MQTT_CONTROL_TOPIC "/control/ESP8266-Weather"
+
 struct network_config_t {
   bool ok;
   char wifi_ssid[128];
@@ -15,6 +17,7 @@ struct network_config_t {
   bool mqtt_ssl;
   char mqtt_username[128];
   char mqtt_password[128];
+  char mqtt_incoming_topic[128];
   char node_name[12];
 };
 
@@ -25,6 +28,8 @@ namespace network {
   const char* mqtt_client_name();
   const char* mqtt_topic();
   void maybe_reconnect();
+  void mqtt_message_received_cb(String topic, String payload, char * bytes, unsigned int length);
+  void loop();
 }
 
 #endif

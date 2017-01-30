@@ -1,8 +1,15 @@
 #include <Arduino.h>
+#include <Ticker.h>
 #include "network.h"
 #include "sensors.h"
 
 ADC_MODE(ADC_VCC);
+
+Ticker resetter;
+
+void restart() {
+  ESP.restart();
+}
 
 void setup() {
   Serial.begin(115200);
@@ -29,19 +36,15 @@ void setup() {
     sensors::readHumidity(),
     sensors::readPressure(),
     ESP.getVcc() / 1000.0);
-
-  delay(300 * 1000);
-  ESP.restart();
+  resetter.once(30, restart);
 }
 
 void loop() {
-  // NOOP
+  // For resets only, we don't need to detach the ticker.
+  network::loop();
+  delay(1000);
 }
 
 void messageReceived(String topic, String payload, char * bytes, unsigned int length) {
-  Serial.print("incoming: ");
-  Serial.print(topic);
-  Serial.print(" - ");
-  Serial.print(payload);
-  Serial.println();
+  network::mqtt_message_received_cb(topic, payload, bytes, length);
 }
