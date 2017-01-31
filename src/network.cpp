@@ -140,11 +140,16 @@ void network::maybe_reconnect() {
     delay(1000);
   }
 
-  mqtt.subscribe(MQTT_CONTROL_TOPIC);
+  // Subscribe to two control topics, one for all sensors using
+  // this software, and the other for one individual sensor
+  char control_topic[9+12];
+  sprintf(control_topic, "/control/%s", network_config.node_name);
+  mqtt.subscribe(MASS_CONTROL_TOPIC);
+  mqtt.subscribe(control_topic);
 }
 
 void network::mqtt_message_received_cb(String topic, String payload, char * bytes, unsigned int length) {
-  if (topic == MQTT_CONTROL_TOPIC) {
+  if (topic.startsWith("/control/")) {
     if (payload.startsWith("RESET")) ESP.restart();
     if (payload.startsWith("UPDATE")) {
       payload.remove(0, 7);
