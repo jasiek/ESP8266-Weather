@@ -2,6 +2,7 @@
 #include <Ticker.h>
 #include "network.h"
 #include "sensors.h"
+#include "updater.h"
 
 ADC_MODE(ADC_VCC);
 
@@ -36,11 +37,11 @@ void setup() {
     sensors::readHumidity(),
     sensors::readPressure(),
     ESP.getVcc() / 1000.0);
-  resetter.once(30, restart);
+  updater::begin(&resetter);
+  resetter.once(300, restart);
 }
 
 void loop() {
-  // For resets only, we don't need to detach the ticker.
   network::loop();
   delay(1000);
 }

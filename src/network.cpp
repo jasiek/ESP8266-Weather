@@ -1,4 +1,5 @@
 #include "network.h"
+#include "updater.h"
 #include <FS.h>
 #include <ArduinoJson.h>
 
@@ -143,15 +144,20 @@ void network::maybe_reconnect() {
 }
 
 void network::mqtt_message_received_cb(String topic, String payload, char * bytes, unsigned int length) {
-  if (topic == MQTT_CONTROL_TOPIC && payload == "RESET") {
-    ESP.restart();
-  } else {
-    DEBUG("incoming: ");
-    DEBUG(topic);
-    DEBUG(" - ");
-    DEBUG(payload);
-    DEBUG();
+  if (topic == MQTT_CONTROL_TOPIC) {
+    if (payload.startsWith("RESET")) ESP.restart();
+    if (payload.startsWith("UPDATE")) {
+      payload.remove(0, 7);
+      payload.trim();
+      updater::update(payload);
+    }
   }
+
+  DEBUG("incoming: ");
+  DEBUG(topic);
+  DEBUG(" - ");
+  DEBUG(payload);
+  DEBUG();
 }
 
 void network::loop() {
