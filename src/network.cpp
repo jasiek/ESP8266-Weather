@@ -90,6 +90,7 @@ void network::report(float temp, float humidity, float pressure, float vcc) {
 
   root["voltage"] = vcc;
   root["rssi"] = WiFi.RSSI();
+  root["uptime"] = millis() / 1000;
   root.printTo(stream);
   DEBUG(stream);
 
