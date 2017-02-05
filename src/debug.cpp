@@ -2,7 +2,7 @@
 
 void debug(const char *file, int line, const char *s) {
   char message[1024];
-  snprintf(message, 1024, "%s:%d:%s ", file, line, s);
+  snprintf(message, 1024, "%s:%d: %s", file, line, s);
   Serial.println(message);
 }
 
