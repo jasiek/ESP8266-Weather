@@ -22,7 +22,7 @@ void updater::update(String &url) {
     case HTTP_UPDATE_OK:
       DEBUG("Updated.");
   }
-  DEBUG(upd.getLastErrorString());
+  DEBUG(upd.getLastErrorString().c_str());
   delay(5000);
   ESP.restart();
 }
