@@ -6,7 +6,7 @@
 #include <MQTTClient.h>
 #include "debug.h"
 
-#define MASS_CONTROL_TOPIC "/control/ESP8266-Weather"
+#define MASS_CONTROL_TOPIC "control/ESP8266-Weather"
 
 struct network_config_t {
   bool ok;
