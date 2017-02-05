@@ -24,7 +24,9 @@ struct network_config_t {
 namespace network {
   void start();
   network_config_t *config();
+  void hello();
   void report(float temp, float humidity, float pressure, float vcc);
+  void send(const char *topic, const char *payload, bool retained);
   const char* mqtt_client_name();
   const char* mqtt_topic();
   void maybe_reconnect();

@@ -19,14 +19,12 @@ void network::start() {
   for (int i = nodeName.indexOf(':'); i > -1; i = nodeName.indexOf(':')) nodeName.remove(i, 1);
   nodeName.toLowerCase();
   strncpy(network_config.node_name, nodeName.c_str(), 12);
-  DEBUG("Node name: ");
-  DEBUG(network_config.node_name);
+  DEBUG("Node name: %s", network_config.node_name);
 
   WiFiMulti.addAP(network_config.wifi_ssid, network_config.wifi_pass);
   mqtt.begin(network_config.mqtt_server,
     network_config.mqtt_port,
     network_config.mqtt_ssl ? clientSecure : clientRegular);
-  maybe_reconnect();
 }
 
 network_config_t *network::config() {
@@ -72,9 +70,27 @@ network_config_t *network::config() {
   return &network_config;
 }
 
-void network::report(float temp, float humidity, float pressure, float vcc) {
-  maybe_reconnect();
+void network::hello() {
+  StaticJsonBuffer<512> buffer;
+  JsonObject& root = buffer.createObject();
+  String stream;
 
+  root["mac"] = network_config.node_name;
+  root["sdk"] = ESP.getSdkVersion();
+  root["boot_mode"] = ESP.getBootMode();
+  root["boot_version"] = ESP.getBootVersion();
+  root["chip_id"] = ESP.getChipId();
+  root["core_version"] = ESP.getCoreVersion();
+  root["cpu_freq"] = ESP.getCpuFreqMHz();
+  root["md5"] =  ESP.getSketchMD5();
+  root["git_rev"] = GIT_REVISION;
+  root["uptime"] = millis() / 1000;
+
+  root.printTo(stream);
+  send("hello", stream.c_str(), false);
+}
+
+void network::report(float temp, float humidity, float pressure, float vcc) {
   StaticJsonBuffer<200> buffer;
   String stream;
   JsonObject& root = buffer.createObject();
@@ -92,25 +108,35 @@ void network::report(float temp, float humidity, float pressure, float vcc) {
   root["rssi"] = WiFi.RSSI();
   root["uptime"] = millis() / 1000;
   root.printTo(stream);
-  DEBUG(stream);
 
+  send(mqtt_topic(), stream.c_str(), true);
+}
 
+void network::send(const char *topic, const char *payload, bool retained) {
+  maybe_reconnect();
 
-  retry:
-  if (mqtt.connected()) {
-    MQTTMessage message;
-    message.topic = (char*)mqtt_topic();
-    message.length = stream.length();
-    message.payload = (char *)stream.c_str();
-    message.retained = true;
+  DEBUG("topic: %s", topic);
+  DEBUG("payload: %s", payload);
 
-    DEBUG("sending");
-    if (mqtt.publish(&message)) {
-      DEBUG("published");
+  MQTTMessage message;
+  message.topic = (char*)topic;
+  message.length = strlen(payload);
+  message.payload = (char *)payload;
+  message.retained = retained;
+
+  int retry = 10;
+  int _delay = 50;
+  while (retry--) {
+    _delay *= 2;
+    delay(_delay);
+    if (mqtt.connected()) {
+      mqtt.loop();
+      DEBUG("sending");
+      if (mqtt.publish(&message)) {
+        DEBUG("published");
+        retry = 0;
+      }
     }
-  } else {
-    // network::reconnect();
-    goto retry;
   }
 }
 
@@ -127,17 +153,22 @@ const char *network::mqtt_topic() {
 }
 
 void network::maybe_reconnect() {
+  if (WiFiMulti.run() == WL_CONNECTED && mqtt.connected()) return;
+
   while (WiFiMulti.run() != WL_CONNECTED) {
-    DEBUG("(Re)connecting...");
+    DEBUG("Reconnecting to WiFi");
     delay(1000);
   }
 
-  DEBUG("connected, got IP: ");
-  DEBUG(WiFi.localIP());
+  DEBUG("Connected, got IP: %s", WiFi.localIP().toString().c_str());
 
   while (!mqtt.connected()) {
     DEBUG("(Re)connecting to MQTT");
-    mqtt.connect(mqtt_client_name(), network_config.mqtt_username, network_config.mqtt_password);
+    if (strlen(network_config.mqtt_username) == 0) {
+      mqtt.connect(mqtt_client_name());
+    } else {
+      mqtt.connect(mqtt_client_name(), network_config.mqtt_username, network_config.mqtt_password);
+    }
     delay(1000);
   }
 
@@ -145,8 +176,12 @@ void network::maybe_reconnect() {
   // this software, and the other for one individual sensor
   char control_topic[9+12];
   sprintf(control_topic, "/control/%s", network_config.node_name);
-  mqtt.subscribe(MASS_CONTROL_TOPIC);
-  mqtt.subscribe(control_topic);
+  if (mqtt.subscribe(MASS_CONTROL_TOPIC)) {
+    DEBUG("Subscribed to %s", MASS_CONTROL_TOPIC);
+  }
+  if (mqtt.subscribe(control_topic)) {
+    DEBUG("Subscribed to %s", control_topic);
+  }
 }
 
 void network::mqtt_message_received_cb(String topic, String payload, char * bytes, unsigned int length) {
@@ -157,13 +192,15 @@ void network::mqtt_message_received_cb(String topic, String payload, char * byte
       payload.trim();
       updater::update(payload);
     }
+    if (payload.startsWith("PING")) {
+      hello();
+    }
   }
 
   DEBUG("incoming: ");
   DEBUG(topic);
   DEBUG(" - ");
   DEBUG(payload);
-  DEBUG();
 }
 
 void network::loop() {

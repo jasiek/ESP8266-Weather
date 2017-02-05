@@ -33,6 +33,7 @@ void setup() {
   }
 
   network::start();
+  network::hello();
   network::report(sensors::readTemperature(),
     sensors::readHumidity(),
     sensors::readPressure(),
