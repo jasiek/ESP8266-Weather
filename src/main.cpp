@@ -1,8 +1,7 @@
 #include <Arduino.h>
 #include <Ticker.h>
-#include "network.h"
+#include <metering.h>
 #include "sensors.h"
-#include "updater.h"
 
 ADC_MODE(ADC_VCC);
 
@@ -32,7 +31,7 @@ void setup() {
     ESP.restart();
   }
 
-  network::start();
+  network::start("ESP8266-Weather");
   network::hello();
   network::report(sensors::readTemperature(),
     sensors::readHumidity(),
