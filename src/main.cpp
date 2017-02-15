@@ -32,7 +32,7 @@ void setup() {
   }
 
   network::start("ESP8266-Weather");
-  network::hello();
+  // network::hello();
   network::report(sensors::readTemperature(),
     sensors::readHumidity(),
     sensors::readPressure(),
