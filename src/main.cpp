@@ -32,7 +32,9 @@ void setup() {
   }
 
   network::start("ESP8266-Weather");
-  // network::hello();
+  // Wait for 10 seconds for WiFi to settle
+  delay(10000);
+  network::hello();
   network::report(sensors::readTemperature(),
     sensors::readHumidity(),
     sensors::readPressure(),
