@@ -4,8 +4,6 @@
 #include <metering.h>
 #include "sensors.h"
 
-#define BUFFER_SIZE 1024
-
 Ticker resetter;
 
 void restart() {
@@ -13,10 +11,10 @@ void restart() {
 }
 
 void report() {
-  StaticJsonBuffer<BUFFER_SIZE> buffer;
+  DynamicJsonBuffer buffer;
   String stream;
   JsonObject& root = buffer.createObject();
-  
+
   float temp = sensors::readTemperature();
   if (!isnan(temp)) {
     root["temperature"] = temp;
@@ -34,7 +32,7 @@ void report() {
 
   root["rssi"] = WiFi.RSSI();
   root.printTo(stream);
-  
+
   network::report(stream);
 }
 
@@ -75,4 +73,3 @@ void loop() {
 void messageReceived(String topic, String payload, char * bytes, unsigned int length) {
   network::mqtt_message_received_cb(topic, payload, bytes, length);
 }
-
