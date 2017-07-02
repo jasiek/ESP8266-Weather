@@ -69,7 +69,3 @@ void loop() {
   network::loop();
   delay(1000);
 }
-
-void messageReceived(String topic, String payload, char * bytes, unsigned int length) {
-  network::mqtt_message_received_cb(topic, payload, bytes, length);
-}
