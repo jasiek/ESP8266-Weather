@@ -15,10 +15,11 @@ enum SensorType sensors::detect() {
   if (installedSensor != SK_NONE) return installedSensor;
 
   Wire.begin(D2, D1);
-
   if (htu.begin()) {
     return installedSensor = SK_HTU21D;
   }
+
+  Wire.begin(D6, D5);
   if (bmp.begin()) {
     return installedSensor = SK_BMP180;
   }

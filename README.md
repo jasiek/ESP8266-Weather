@@ -12,4 +12,11 @@ SDA - D1
 3 - NC
 4 - GND
 
+## BMP180
+
+VIN - 3V
+GND - GND
+SCL - D5
+SDA - D6
+
 I didn't use any pullups or anything.
