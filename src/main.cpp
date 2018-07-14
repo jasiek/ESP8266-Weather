@@ -31,6 +31,8 @@ void report() {
   }
 
   root["rssi"] = WiFi.RSSI();
+  uint32 timestamp = time::get_current();
+  if (timestamp > 0) root["timestamp"] = timestamp;
   root.printTo(stream);
 
   network::report(stream);
